@@ -1,0 +1,3 @@
+[submodule "libraries/Seeed_Arduino_CAN"]
+	path = libraries/Seeed_Arduino_CAN
+	url = git@github.com:cydia2020/Seeed_Arduino_CAN.git
