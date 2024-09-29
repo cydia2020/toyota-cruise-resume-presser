@@ -25,12 +25,9 @@ bool pcmStandstill = false;
 unsigned long transistorOnTime = 0;
 const unsigned long transistorDuration = 20;
 
-// Define relay control pin
 const int BUTTON_TRANSISTOR_PIN = A1;
 
 void setup() {
-  pinMode(DIMMER_OUTPUT_RELAY_PIN, OUTPUT);
-  digitalWrite(DIMMER_OUTPUT_RELAY_PIN, LOW);
   pinMode(BUTTON_TRANSISTOR_PIN, OUTPUT);
   digitalWrite(BUTTON_TRANSISTOR_PIN, LOW);
   attachInterrupt(digitalPinToInterrupt(CAN_INTERRUPT_PIN), MCP2515_ISR, FALLING);
