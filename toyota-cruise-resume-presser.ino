@@ -16,11 +16,13 @@ mcp2515_can CAN0(SPI_CS_PIN);
 
 #define ACC_CONTROL 0x343
 #define PCM_CRUISE 0x1D2
+#define PCM_CRUISE_2 0x1D3
 
 // Define variables to remember the last state of the relevant IDs
 bool resumeReady = false;
 bool transistorPowered = false;
 bool pcmStandstill = false;
+bool brakePressed = false;
 
 unsigned long transistorOnTime = 0;
 const unsigned long transistorDuration = 20;
@@ -35,17 +37,17 @@ void setup() {
   bool resumeReady = false;
   bool transistorPowered = false;
   bool pcmStandstill = false;
+  bool brakePressed = false;
 
   if (CAN0.begin(CAN_500KBPS) == CAN_OK) {
-    CAN0.init_Mask(0, 0, 0x07FF0000);
-    CAN0.init_Mask(1, 0, 0x07FF0000);
-
-    CAN0.init_Filt(0, 0, 0x03430000);
-    CAN0.init_Filt(1, 0, 0x01D20000);
-    CAN0.init_Filt(2, 0, 0x03430000);
-    CAN0.init_Filt(3, 0, 0x01D20000);
-    CAN0.init_Filt(4, 0, 0x03430000);
-    CAN0.init_Filt(5, 0, 0x01D20000);
+    CAN0.init_Mask(0, 0, 0x7FF);
+    CAN0.init_Filt(0, 0, 0x343);
+    CAN0.init_Filt(1, 0, 0x1D2);
+    CAN0.init_Mask(1, 0, 0x7FF);
+    CAN0.init_Filt(2, 0, 0x1D3);
+    CAN0.init_Filt(3, 0, 0x343);
+    CAN0.init_Filt(4, 0, 0x1D2);
+    CAN0.init_Filt(5, 0, 0x1D3);
   }
 }
 
@@ -55,12 +57,14 @@ void MCP2515_ISR() {
 
 void loop() {
   // Check if a CAN message is available
-  //  if (CAN0.checkReceive() == CAN_MSGAVAIL) {
+  //  if (CAN0.checkReceive() == CAN_MSGAVAIL) { when not using interrupts, you really should be using interrupts
+  // interrupt flag
   if (canMessageAvailable) {
+    // reset flag
     canMessageAvailable = false;
-    // Now read the CAN message (moved from interrupt to main loop)
+    // now read the CAN message
     CAN0.readMsgBufID(&lastRxId, &lastDlc, lastRxBuf);
-    processCanMessage();          // Process the message
+    processCanMessage();  // Process the message
   }
 
   // Turn off the transistor after transistorDuration
@@ -80,8 +84,13 @@ void processCanMessage() {
     pcmStandstill = ((lastRxBuf[6] & 0xF0) >> 4 == 7 || (lastRxBuf[6] & 0xF0) >> 4 == 11);  // Check CRUISE_STATE
   }
 
+  // get brake pressed from brake_module
+  if (lastDlc == 8 && lastRxId == PCM_CRUISE_2) {
+    brakePressed = bitRead(lastRxBuf[0], 3);
+  }
+
   // Power the transistor briefly if both conditions are true and it's not already powered
-  if (resumeReady && pcmStandstill && !transistorPowered) {
+  if (resumeReady && pcmStandstill && !brakePressed) {
     PORTC |= (1 << PC1);          // Power the transistor
     transistorOnTime = millis();  // Record the time when the transistor was turned on
     transistorPowered = true;     // Set the flag indicating the transistor is powered
